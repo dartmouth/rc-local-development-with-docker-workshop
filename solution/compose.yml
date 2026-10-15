@@ -1,0 +1,51 @@
+services:
+  web:
+    build: ./web
+    ports:
+      - "3000:3000"          # the only service published to your machine
+    environment:
+      WEB_HOST: 0.0.0.0      # listen on all interfaces, not just the container's loopback
+      API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    init: true               # forwards SIGTERM so `podman compose down` is quick
+
+  api:
+    build: ./api
+    environment:
+      API_HOST: 0.0.0.0
+      REDIS_HOST: redis      # Compose service names are DNS names on the project network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    init: true
+
+  worker:
+    build: ./worker
+    profiles: ["worker"]     # stretch goal: podman compose --profile worker up --scale worker=3
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    init: true
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:

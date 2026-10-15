@@ -1,0 +1,18 @@
+FROM docker.io/library/python:3.12-slim
+
+# Without this, print() output is buffered and may never reach `podman logs`.
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install dependencies first so this layer is cached when only app code changes.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py .
+
+RUN useradd --create-home appuser
+USER appuser
+
+EXPOSE 8000
+CMD ["python", "app.py"]

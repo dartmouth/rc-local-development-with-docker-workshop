@@ -1,0 +1,19 @@
+FROM docker.io/library/node:20-slim
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+# Install dependencies first so this layer is cached when only app code changes.
+# Once package-lock.json is committed, switch this to `npm ci --omit=dev`.
+COPY package*.json ./
+RUN npm install --omit=dev
+
+COPY server.js ./
+COPY public ./public
+
+# The official Node image ships with an unprivileged "node" user.
+USER node
+
+EXPOSE 3000
+# Run node directly rather than via `npm start`, so signals reach the app.
+CMD ["node", "server.js"]
